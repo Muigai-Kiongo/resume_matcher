@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Resume Details{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto card p-8">
+    <h2 class="text-2xl font-bold mb-2 text-gray-800">Resume Details</h2>
+    <p class="mb-2 text-gray-600"><strong>Skills:</strong> {{ resume.get_skills_as_string }}</p>
+    <p class="mb-2 text-gray-600"><strong>Summary:</strong> {{ resume.summary }}</p>
+    <p class="mb-2 text-gray-600"><strong>Education:</strong> {{ resume.education }}</p>
+    <p class="mb-2 text-gray-600"><strong>Experience:</strong> {{ resume.experience }}</p>
+    <p class="mb-2 text-gray-500 text-xs"><strong>Uploaded:</strong> {{ resume.uploaded_at|date:"M d, Y" }}</p>
+    <div class="flex mt-6 space-x-4">
+        <a href="{% url 'resume_update' resume.pk %}" class="btn-primary px-4 py-2 rounded">Edit</a>
+        <a href="{% url 'resume_delete' resume.pk %}" class="btn-primary px-4 py-2 rounded bg-red-600 hover:bg-red-700">Delete</a>
+        <a href="{% url 'resume_list' %}" class="text-blue-600 hover:underline px-4 py-2">Back</a>
+    </div>
+</div>
+{% endblock %}

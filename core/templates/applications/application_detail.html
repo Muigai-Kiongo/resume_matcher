@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Application Details{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto card p-8">
+    <h2 class="text-2xl font-bold mb-2 text-gray-800">Application Details</h2>
+    <p class="mb-2 text-gray-600"><strong>Job:</strong> {{ application.job.title }} at {{ application.job.company }}</p>
+    <p class="mb-2 text-gray-600"><strong>Status:</strong>
+        <span class="font-semibold {% if application.status == 'hired' %}text-green-600{% elif application.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %}">
+            {{ application.get_status_display }}
+        </span>
+    </p>
+    <p class="mb-2 text-gray-600"><strong>Resume:</strong>
+        <a href="{% url 'resume_detail' application.resume.pk %}" class="text-blue-600 hover:underline">{{ application.resume.get_skills_as_string }}</a>
+    </p>
+    <p class="mb-2 text-gray-600"><strong>AI Feedback:</strong> {{ application.ai_feedback|default:"No feedback yet." }}</p>
+    <p class="mb-2 text-gray-500 text-xs"><strong>Submitted:</strong> {{ application.submission_date|date:"M d, Y" }}</p>
+    <div class="flex mt-6 space-x-4">
+        <a href="{% url 'application_update' application.pk %}" class="btn-primary px-4 py-2 rounded">Edit</a>
+        <a href="{% url 'application_delete' application.pk %}" class="btn-primary px-4 py-2 rounded bg-red-600 hover:bg-red-700">Delete</a>
+        <a href="{% url 'application_list' %}" class="text-blue-600 hover:underline px-4 py-2">Back</a>
+    </div>
+</div>
+{% endblock %}

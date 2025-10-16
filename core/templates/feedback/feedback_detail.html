@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Feedback Details{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto card p-8">
+    <h2 class="text-2xl font-bold mb-2 text-gray-800">Feedback Details</h2>
+    <p class="mb-2 text-gray-600"><strong>Application:</strong> <a href="{% url 'application_detail' feedback.application.pk %}" class="text-blue-600 hover:underline">View Application</a></p>
+    <p class="mb-2 text-gray-600"><strong>Rating:</strong> {{ feedback.rating }} ⭐</p>
+    <p class="mb-2 text-gray-600"><strong>Comments:</strong> {{ feedback.comments|default:"No comments." }}</p>
+    <p class="mb-2 text-gray-500 text-xs"><strong>Submitted:</strong> {{ feedback.created_at|date:"M d, Y" }}</p>
+    <a href="{% url 'feedback_list' %}" class="text-blue-600 hover:underline mt-6 block">Back to Feedback List</a>
+</div>
+{% endblock %}

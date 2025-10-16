@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}My Resumes{% endblock %}
+{% block content %}
+<div class="mb-8 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-800">My Resumes</h1>
+    <a href="{% url 'resume_create' %}" class="btn-primary px-4 py-2 rounded">Upload New Resume</a>
+</div>
+<div class="card p-6">
+    {% if resumes %}
+    <ul>
+        {% for resume in resumes %}
+        <li class="mb-4 flex items-center justify-between border-b pb-2">
+            <div>
+                <a href="{% url 'resume_detail' resume.pk %}" class="text-indigo-700 font-medium hover:underline">{{ resume.get_skills_as_string }}</a>
+                <span class="block text-xs text-gray-400">Uploaded: {{ resume.uploaded_at|date:"M d, Y" }}</span>
+            </div>
+            <div class="flex space-x-2">
+                <a href="{% url 'resume_update' resume.pk %}" class="text-blue-600 hover:underline text-sm">Edit</a>
+                <a href="{% url 'resume_delete' resume.pk %}" class="text-red-600 hover:underline text-sm">Delete</a>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-gray-500">No resumes uploaded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}My Feedback{% endblock %}
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">My Feedback</h1>
+</div>
+<div class="card p-6">
+    {% if feedbacks %}
+    <ul>
+        {% for feedback in feedbacks %}
+        <li class="mb-4 flex items-center justify-between border-b pb-2">
+            <a href="{% url 'feedback_detail' feedback.pk %}" class="text-indigo-700 font-medium hover:underline">
+                Feedback for Application #{{ feedback.application.pk }}
+            </a>
+            <span class="text-sm text-gray-500">Rating: {{ feedback.rating }} ⭐</span>
+            <a href="{% url 'feedback_delete' feedback.pk %}" class="text-red-600 hover:underline text-sm">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-gray-500">No feedback submitted yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

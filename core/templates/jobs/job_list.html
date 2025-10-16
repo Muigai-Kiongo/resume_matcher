@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Job Listings{% endblock %}
+{% block content %}
+<div class="mb-8 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-800">Job Listings</h1>
+    {% if user.account_type == 'recruiter' %}
+    <a href="{% url 'job_create' %}" class="btn-primary px-4 py-2 rounded">Post New Job</a>
+    {% endif %}
+</div>
+<div class="card p-6">
+    {% if jobs %}
+    <ul>
+        {% for job in jobs %}
+        <li class="mb-4 flex items-center justify-between border-b pb-2">
+            <div>
+                <a href="{% url 'job_detail' job.pk %}" class="text-blue-700 font-medium hover:underline">{{ job.title }}</a>
+                <span class="block text-sm text-gray-500">{{ job.company }} &mdash; {{ job.location }}</span>
+            </div>
+            {% if user.account_type == 'recruiter' and job.posted_by == user %}
+            <div class="flex space-x-2">
+                <a href="{% url 'job_update' job.pk %}" class="text-blue-600 hover:underline text-sm">Edit</a>
+                <a href="{% url 'job_delete' job.pk %}" class="text-red-600 hover:underline text-sm">Delete</a>
+            </div>
+            {% endif %}
+            {% if user.account_type == 'seeker' %}
+            <a href="{% url 'application_create' job.pk %}" class="btn-primary px-3 py-1 rounded text-xs">Apply</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-gray-500">No jobs posted yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}ResumeMatcher{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Inter:400,500,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body { font-family: 'Inter', Arial, sans-serif; background-color: #f5f7fa; height: 100vh; }
+        #app-wrap { min-height: 100vh; height: 100vh; display: flex; }
+        .office-navbar { background-color: #22314e; }
+        .office-navbar a, .office-navbar span { color: #fff; }
+        .office-navbar a:hover { color: #a4b8d3; }
+        .office-footer { background-color: #22314e; color: #a4b8d3; }
+        .card { background: #fff; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(34,49,78,0.08); }
+        .btn-primary { background: #22314e; color: #fff; }
+        .btn-primary:hover { background: #2a416e; }
+        .sidebar { background: #22314e; min-width: 220px; max-width: 260px; color: #fff; flex-shrink: 0; height: 100vh; position: fixed; left: 0; top: 0; z-index: 40; }
+        .sidebar a { color: #fff; display: block; padding: .75rem 1rem; border-radius: .375rem; transition: background .2s, color .2s; text-align: left; }
+        .sidebar a:hover, .sidebar .active { background: #2a416e; color: #a4b8d3; }
+        .sidebar .profile-pic { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-bottom: 0.75rem; }
+        .user-badge { background: #fff; color: #22314e; padding: .4rem 1.1rem; border-radius: 9999px; font-weight: 500; box-shadow: 0 2px 8px rgba(34,49,78,0.08);}
+        .nav-links { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; width: 100%; margin-top: 1.5rem;}
+        .sidebar form { width: 100%; }
+        .main-content-wrap { margin-left: 220px; width: calc(100vw - 220px); min-height: 100vh; display: flex; flex-direction: column; }
+        @media (max-width: 640px) {
+            .sidebar { position: static; min-width: 0; width: 100vw; height: auto; }
+            .main-content-wrap { margin-left: 0; width: 100vw; }
+        }
+        /* Make only main block content area scrollable */
+        .scrollable-content { flex: 1 1 auto; overflow-y: auto; padding-bottom: 1rem; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div id="app-wrap">
+        <!-- Sidebar Navigation for authenticated users -->
+        {% if user.is_authenticated %}
+        <aside class="sidebar flex flex-col items-start py-6 px-4">
+            {% if user.profile_picture %}
+                <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="profile-pic mb-2">
+            {% else %}
+                <div class="profile-pic mb-2 flex items-center justify-center bg-gray-300 text-gray-600">
+                    <svg class="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M5.121 17.804A4 4 0 0112 15a4 4 0 016.879 2.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+            {% endif %}
+            <div class="user-badge mb-4">{{ user.username }} <span class="text-xs font-normal">({{ user.account_type|title }})</span></div>
+            <nav class="nav-links w-full">
+                {% if user.account_type == 'seeker' %}
+                    <a href="{% url 'seeker_dashboard' %}" class="{% if request.resolver_match.url_name == 'seeker_dashboard' %}active{% endif %}">Dashboard</a>
+                    <a href="{% url 'resume_list' %}" class="{% if request.resolver_match.url_name == 'resume_list' %}active{% endif %}">My Resumes</a>
+                    <a href="{% url 'application_list' %}" class="{% if request.resolver_match.url_name == 'application_list' %}active{% endif %}">Applications</a>
+                    <a href="{% url 'job_list' %}" class="{% if request.resolver_match.url_name == 'job_list' %}active{% endif %}">Browse Jobs</a>
+                {% elif user.account_type == 'recruiter' %}
+                    <a href="{% url 'recruiter_dashboard' %}" class="{% if request.resolver_match.url_name == 'recruiter_dashboard' %}active{% endif %}">Dashboard</a>
+                    <a href="{% url 'job_list' %}" class="{% if request.resolver_match.url_name == 'job_list' %}active{% endif %}">My Jobs</a>
+                    <a href="{% url 'application_list' %}" class="{% if request.resolver_match.url_name == 'application_list' %}active{% endif %}">Applications</a>
+                    <a href="{% url 'job_list' %}" class="{% if request.resolver_match.url_name == 'job_list' %}active{% endif %}">Browse Jobs</a>
+                {% else %}
+                    <a href="{% url 'job_list' %}">Browse Jobs</a>
+                {% endif %}
+            </nav>
+            <form action="{% url 'logout' %}" method="post" class="mt-8 px-2 w-full">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary w-full py-2 rounded">Logout</button>
+            </form>
+        </aside>
+        {% else %}
+        <!-- Top Navbar for guests -->
+        <nav class="office-navbar w-full px-6 py-4 flex items-center justify-between shadow">
+            <div class="flex items-center space-x-4">
+                <a href="/" class="font-bold text-lg tracking-wide">ResumeMatcher</a>
+                <a href="{% url 'job_list' %}">Browse Jobs</a>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'login' %}" class="btn btn-primary px-3 py-1 rounded">Login</a>
+                <a href="{% url 'signup' %}" class="btn btn-primary px-3 py-1 rounded">Sign Up</a>
+            </div>
+        </nav>
+        {% endif %}
+
+        <!-- Main Content Area -->
+        <div class="main-content-wrap flex flex-col min-h-screen">
+            {% if user.is_authenticated %}
+            <header class="bg-white shadow flex items-center justify-between px-6 py-3">
+                <div class="flex items-center space-x-2">
+                    <span class="font-bold text-xl text-indigo-900">ResumeMatcher</span>
+                    <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full ml-2">v1.0</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-gray-500">Office Professional Platform</span>
+                </div>
+            </header>
+            {% endif %}
+
+            <main class="scrollable-content max-w-5xl mx-auto py-8 px-4 w-full">
+                {% if messages %}
+                    <div class="mb-4">
+                        {% for message in messages %}
+                            <div class="px-4 py-2 mb-2 rounded text-white
+                                {% if message.tags == 'error' %}bg-red-600{% elif message.tags == 'success' %}bg-green-600{% else %}bg-blue-600{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {% block content %}
+                <!-- Content will go here -->
+                {% endblock %}
+            </main>
+
+            <footer class="office-footer py-4 text-center text-sm mt-auto">
+                &copy; {{ now|date:"Y" }} ResumeMatcher | Designed for office professionals
+                <span class="ml-2 text-xs">
+                    {% if user.is_authenticated %}
+                        Logged in as {{ user.username }} ({{ user.account_type|title }})
+                    {% else %}
+                        Guest Mode
+                    {% endif %}
+                </span>
+            </footer>
+        </div>
+    </div>
+</body>
+</html>

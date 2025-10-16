@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Applications{% endblock %}
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Applications</h1>
+</div>
+<div class="card p-6">
+    {% if applications %}
+    <ul>
+        {% for application in applications %}
+        <li class="mb-4 flex flex-col border-b pb-2">
+            <a href="{% url 'application_detail' application.pk %}" class="text-indigo-700 font-medium hover:underline">
+                {{ application.job.title }} at {{ application.job.company }}
+            </a>
+            <span class="text-sm text-gray-500">Status:
+                <span class="font-semibold {% if application.status == 'hired' %}text-green-600{% elif application.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %}">
+                    {{ application.get_status_display }}
+                </span>
+            </span>
+            <span class="text-xs text-gray-400">Submitted: {{ application.submission_date|date:"M d, Y" }}</span>
+            <div class="flex space-x-2 mt-2">
+                <a href="{% url 'application_update' application.pk %}" class="text-blue-600 hover:underline text-sm">Edit</a>
+                <a href="{% url 'application_delete' application.pk %}" class="text-red-600 hover:underline text-sm">Delete</a>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-gray-500">No applications found.</p>
+    {% endif %}
+</div>
+{% endblock %}
