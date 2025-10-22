@@ -1,20 +1,136 @@
 {% extends "base.html" %}
 {% block title %}Application Form{% endblock %}
+
 {% block content %}
 <div class="max-w-xl mx-auto card p-8">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">{{ form.instance.pk|yesno:"Edit Application,Apply for Job" }}</h2>
-    <form method="post" novalidate>
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">
+        {{ form.instance.pk|yesno:"Edit Application,Apply for Job" }}
+    </h2>
+
+    {% if job %}
+    <div class="mb-6 p-4 bg-indigo-50 rounded border border-indigo-100">
+        <div class="flex items-start justify-between">
+            <div>
+                <div class="text-lg font-semibold text-indigo-900">{{ job.title }}</div>
+                <div class="text-sm text-gray-600">{{ job.company }}{% if job.location %} • {{ job.location }}{% endif %}</div>
+                {% if job.salary_range %}
+                    <div class="text-xs text-gray-500 mt-1">Salary: {{ job.salary_range }}</div>
+                {% endif %}
+            </div>
+            {% if job.requirements.exists %}
+            <div class="text-xs">
+                <div class="text-gray-600 mb-1">Requirements</div>
+                <div class="flex flex-wrap gap-1">
+                    {% for skill in job.requirements.all %}
+                        <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">{{ skill.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="post" novalidate id="application-form">
         {% csrf_token %}
-        {% for field in form %}
+        {{ form.non_field_errors }}
+
+        {# Render resume field first (explicit) #}
+        {% if form.resume %}
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700">{{ form.resume.label }}</label>
+            {{ form.resume }}
+            {% if form.resume.help_text %}
+                <p class="text-xs text-gray-500 mt-1">{{ form.resume.help_text }}</p>
+            {% endif %}
+            {% if form.resume.errors %}
+                <p class="text-red-600 text-sm mt-1">{{ form.resume.errors.0 }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+       {% comment %} Status handling:
+           - Recruiters: show the status control (if present in visible_fields)
+           - Seekers: do not show a status control; show a read-only badge or note.
+         {% endcomment %}
+        {% if request.user.account_type == 'recruiter' %}
+            {% if form.status in form.visible_fields %}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">{{ form.status.label }}</label>
+                {{ form.status }}
+                {% if form.status.help_text %}
+                    <p class="text-xs text-gray-500 mt-1">{{ form.status.help_text }}</p>
+                {% endif %}
+                {% if form.status.errors %}
+                    <p class="text-red-600 text-sm mt-1">{{ form.status.errors.0 }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% else %}
+            {# seeker view: show read-only status info when editing, otherwise inform default pending #}
+            {% if form.instance.pk %}
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Status</label>
+                    <div class="inline-block text-sm font-semibold {% if form.instance.status == 'hired' %}text-green-600{% elif form.instance.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %}">
+                        {{ form.instance.get_status_display }}
+                    </div>
+                </div>
+            {% else %}
+                <div class="mb-4">
+                    <p class="text-sm text-gray-500">Your application status will be <strong>Pending</strong> after submission.</p>
+                </div>
+            {% endif %}
+        {% endif %}
+
+        {# Render any other visible fields (if you add fields later) #}
+        {% for field in form.visible_fields %}
+            {% if field.name in "resume,status" %}
+                {# already rendered above #}
+            {% else %}
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
                 {{ field }}
+                {% if field.help_text %}
+                    <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
+                {% endif %}
                 {% if field.errors %}
                     <p class="text-red-600 text-sm mt-1">{{ field.errors.0 }}</p>
                 {% endif %}
             </div>
+            {% endif %}
         {% endfor %}
-        <button type="submit" class="btn-primary px-4 py-2 rounded w-full">Submit</button>
+
+        {# Render hidden fields (job, hidden status for seekers, CSRF already rendered) #}
+        {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+        {% endfor %}
+
+        <button type="submit" class="btn-primary px-4 py-2 rounded w-full">Submit Application</button>
     </form>
+
+    {% if job and form.instance.pk and form.instance.resume %}
+    <div class="mt-4 text-sm text-gray-600">
+        <p>Current resume used: <a href="{% url 'resume_detail' form.instance.resume.pk %}" class="text-indigo-700 hover:underline">{{ form.instance.resume.summary|default:form.instance.resume.get_skills_as_string|truncatechars:60 }}</a></p>
+    </div>
+    {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const appForm = document.getElementById('application-form');
+    if (!appForm) return;
+
+    appForm.addEventListener('submit', function (e) {
+        // Optional: simple client-side check that a resume is selected (if the field exists)
+        const resumeField = appForm.querySelector('[name="resume"]');
+        if (resumeField && resumeField.value === "") {
+            e.preventDefault();
+            alert("Please select a resume before submitting your application.");
+            resumeField.focus();
+            return false;
+        }
+        // Let the form submit normally
+    });
+});
+</script>
 {% endblock %}

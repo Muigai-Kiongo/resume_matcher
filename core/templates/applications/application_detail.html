@@ -1,23 +1,87 @@
 {% extends "base.html" %}
 {% block title %}Application Details{% endblock %}
+
 {% block content %}
 <div class="max-w-2xl mx-auto card p-8">
-    <h2 class="text-2xl font-bold mb-2 text-gray-800">Application Details</h2>
-    <p class="mb-2 text-gray-600"><strong>Job:</strong> {{ application.job.title }} at {{ application.job.company }}</p>
-    <p class="mb-2 text-gray-600"><strong>Status:</strong>
-        <span class="font-semibold {% if application.status == 'hired' %}text-green-600{% elif application.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %}">
-            {{ application.get_status_display }}
-        </span>
-    </p>
-    <p class="mb-2 text-gray-600"><strong>Resume:</strong>
-        <a href="{% url 'resume_detail' application.resume.pk %}" class="text-blue-600 hover:underline">{{ application.resume.get_skills_as_string }}</a>
-    </p>
-    <p class="mb-2 text-gray-600"><strong>AI Feedback:</strong> {{ application.ai_feedback|default:"No feedback yet." }}</p>
-    <p class="mb-2 text-gray-500 text-xs"><strong>Submitted:</strong> {{ application.submission_date|date:"M d, Y" }}</p>
-    <div class="flex mt-6 space-x-4">
-        <a href="{% url 'application_update' application.pk %}" class="btn-primary px-4 py-2 rounded">Edit</a>
-        <a href="{% url 'application_delete' application.pk %}" class="btn-primary px-4 py-2 rounded bg-red-600 hover:bg-red-700">Delete</a>
-        <a href="{% url 'application_list' %}" class="text-blue-600 hover:underline px-4 py-2">Back</a>
+    <div class="flex items-start justify-between">
+        <div>
+            <h2 class="text-2xl font-bold mb-1 text-gray-800">Application Details</h2>
+            <p class="text-sm text-gray-500">Submitted: {{ application.submission_date|date:"M d, Y" }}</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+            {% if request.user == application.user %}
+                <a href="{% url 'application_update' application.pk %}" class="px-3 py-1 rounded border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">Edit</a>
+                <form action="{% url 'application_delete' application.pk %}" method="post" class="inline" onsubmit="return confirm('Withdraw this application?');">
+                    {% csrf_token %}
+                    <button type="submit" class="px-3 py-1 rounded bg-red-600 text-white text-sm hover:bg-red-700">Withdraw</button>
+                </form>
+            {% elif request.user == application.job.posted_by %}
+                <a href="{% url 'application_update' application.pk %}" class="px-3 py-1 rounded border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">Update Status</a>
+            {% endif %}
+            <a href="{% url 'application_list' %}" class="px-3 py-1 rounded border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">Back</a>
+        </div>
+    </div>
+
+    <hr class="my-6">
+
+    <div class="space-y-3">
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700">Job</h3>
+            <p class="text-lg font-semibold text-indigo-900">{{ application.job.title }}</p>
+            <p class="text-sm text-gray-600">{{ application.job.company }}{% if application.job.location %} • {{ application.job.location }}{% endif %}</p>
+            {% if application.job.salary_range %}
+                <p class="text-xs text-gray-500">Salary: {{ application.job.salary_range }}</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700">Status</h3>
+            <p class="font-semibold {% if application.status == 'hired' %}text-green-600{% elif application.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %}">
+                {{ application.get_status_display }}
+            </p>
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700">Resume</h3>
+            {% if application.resume %}
+                <p>
+                    <a href="{% url 'resume_detail' application.resume.pk %}" class="text-indigo-700 hover:underline">
+                        {{ application.resume.summary|default:application.resume.get_skills_as_string|truncatechars:80 }}
+                    </a>
+                </p>
+                {% if request.user == application.job.posted_by %}
+                    <p class="text-xs text-gray-500 mt-1">Uploaded: {{ application.resume.uploaded_at|date:"M d, Y" }}</p>
+                {% endif %}
+            {% else %}
+                <p class="text-sm text-gray-500">No resume attached.</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700">Match Score</h3>
+            {% if application.match_score is not None %}
+                <p class="text-sm text-gray-700">{{ application.match_score|floatformat:2 }} (0.00 - 1.00)</p>
+            {% else %}
+                <p class="text-sm text-gray-500">No match score available.</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700">AI Feedback</h3>
+            <p class="text-sm text-gray-700">{{ application.ai_feedback|default:"No feedback yet." }}</p>
+        </div>
+
+        {% if request.user == application.job.posted_by %}
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700">Applicant</h3>
+            <p class="text-sm text-gray-700">
+                {{ application.user.get_full_name|default:application.user.username }}
+            </p>
+            <p class="text-xs text-gray-500">Joined: {{ application.user.date_joined|date:"M d, Y" }}</p>
+            <p class="text-xs text-gray-500">Email: <a href="mailto:{{ application.user.email }}" class="text-indigo-700 hover:underline">{{ application.user.email }}</a></p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

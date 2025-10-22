@@ -1,20 +1,212 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Resume Form{% endblock %}
+
 {% block content %}
-<div class="max-w-xl mx-auto card p-8">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">{{ form.instance.pk|yesno:"Edit Resume,Upload Resume" }}</h2>
-    <form method="post" enctype="multipart/form-data" novalidate>
+<div class="max-w-3xl mx-auto card p-8">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+        {{ form.instance.pk|yesno:"Edit Resume,Upload Resume" }}
+    </h2>
+
+    <form method="post" enctype="multipart/form-data" novalidate id="resume-form">
         {% csrf_token %}
-        {% for field in form %}
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}
-                    <p class="text-red-600 text-sm mt-1">{{ field.errors.0 }}</p>
+        {{ form.non_field_errors }}
+
+        <!-- Left column: primary resume fields -->
+        <div class="space-y-4">
+            <!-- File upload + preview -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Resume File</label>
+                <div class="mt-1">
+                    {{ form.file }}
+                </div>
+                {% if resume and resume.file %}
+                    <p class="text-sm text-gray-600 mt-2">
+                        Current file:
+                        <a class="text-indigo-700 hover:underline" href="{{ resume.file.url }}" target="_blank">
+                            {{ resume.file.name|slice:"-60:" }}
+                        </a>
+                    </p>
+                {% endif %}
+                {% if form.file.errors %}
+                    <p class="text-red-600 text-sm mt-1">{{ form.file.errors.0 }}</p>
                 {% endif %}
             </div>
-        {% endfor %}
-        <button type="submit" class="btn-primary px-4 py-2 rounded w-full">Save</button>
+
+            <!-- Extracted text (optional, editable) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Extracted Text</label>
+                <div class="mt-1">
+                    {{ form.extracted_text }}
+                </div>
+                {% if form.extracted_text.errors %}
+                    <p class="text-red-600 text-sm mt-1">{{ form.extracted_text.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Skills (select existing + add new) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Skills</label>
+                <div class="mt-1">
+                    {{ form.skills }}
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Select multiple (Ctrl / Cmd + click) or add new ones below.</p>
+                {% if form.skills.errors %}
+                    <p class="text-red-600 text-sm mt-1">{{ form.skills.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            {% if form.new_skills %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Add new skills (comma-separated)</label>
+                <div class="mt-1">
+                    {{ form.new_skills }}
+                </div>
+                {% if form.new_skills.errors %}
+                    <p class="text-red-600 text-sm mt-1">{{ form.new_skills.errors.0 }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Summary -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Summary / Objective</label>
+                <div class="mt-1">
+                    {{ form.summary }}
+                </div>
+                {% if form.summary.errors %}
+                    <p class="text-red-600 text-sm mt-1">{{ form.summary.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <hr class="my-6">
+
+        <!-- Inline formset: Experiences -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-lg font-semibold text-gray-800">Experience</h3>
+                <button type="button" id="add-exp" class="btn-primary px-3 py-1 rounded text-sm">+ Add experience</button>
+            </div>
+
+            <div id="exp-forms" class="space-y-3">
+                {{ exp_formset.management_form }}
+                {% for f in exp_formset.forms %}
+                    <div class="card p-4 bg-gray-50">
+                        <div class="flex justify-between items-start">
+                            <div class="w-full">
+                                {% for field in f.visible_fields %}
+                                    <div class="mb-2">
+                                        <label class="block text-sm text-gray-700">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% if field.errors %}
+                                            <p class="text-red-600 text-sm mt-1">{{ field.errors.0 }}</p>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="pl-3">
+                                {% if exp_formset.can_delete %}
+                                    <label class="text-sm text-gray-600">Remove</label>
+                                    {{ f.DELETE }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- empty form template (hidden) -->
+            <div id="exp-empty-form" class="hidden">
+                {{ exp_formset.empty_form.as_p|escape }}
+            </div>
+        </div>
+
+        <!-- Inline formset: Education -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-lg font-semibold text-gray-800">Education</h3>
+                <button type="button" id="add-edu" class="btn-primary px-3 py-1 rounded text-sm">+ Add education</button>
+            </div>
+
+            <div id="edu-forms" class="space-y-3">
+                {{ edu_formset.management_form }}
+                {% for f in edu_formset.forms %}
+                    <div class="card p-4 bg-gray-50">
+                        <div class="flex justify-between items-start">
+                            <div class="w-full">
+                                {% for field in f.visible_fields %}
+                                    <div class="mb-2">
+                                        <label class="block text-sm text-gray-700">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% if field.errors %}
+                                            <p class="text-red-600 text-sm mt-1">{{ field.errors.0 }}</p>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="pl-3">
+                                {% if edu_formset.can_delete %}
+                                    <label class="text-sm text-gray-600">Remove</label>
+                                    {{ f.DELETE }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- empty form template (hidden) -->
+            <div id="edu-empty-form" class="hidden">
+                {{ edu_formset.empty_form.as_p|escape }}
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <button type="submit" class="btn-primary px-4 py-2 rounded w-full">Save Resume</button>
+        </div>
     </form>
 </div>
+
+<!-- Small JS to add/remove inline formset rows -->
+<script>
+(function(){
+    function initFormset(prefix) {
+        const formsContainer = document.getElementById(prefix + '-forms');
+        const totalFormsInput = formsContainer.querySelector('input[name="' + prefix + '-TOTAL_FORMS"]');
+        const emptyFormEl = document.getElementById(prefix + '-empty-form');
+
+        function addForm() {
+            const total = parseInt(totalFormsInput.value, 10);
+            // empty form HTML contains __prefix__ placeholders; replace them
+            let template = emptyFormEl.innerHTML;
+            template = template.replace(/__prefix__/g, total);
+            // create wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card p-4 bg-gray-50';
+            wrapper.innerHTML = template;
+            formsContainer.appendChild(wrapper);
+            totalFormsInput.value = total + 1;
+            // Optionally scroll into view
+            wrapper.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+
+        return { addForm };
+    }
+
+    const exp = initFormset('exp');
+    const edu = initFormset('edu');
+
+    document.getElementById('add-exp').addEventListener('click', function(e){
+        e.preventDefault();
+        exp.addForm();
+    });
+    document.getElementById('add-edu').addEventListener('click', function(e){
+        e.preventDefault();
+        edu.addForm();
+    });
+
+    // Note: deletion is handled by Django's DELETE checkbox present in each form row.
+})();
+</script>
 {% endblock %}

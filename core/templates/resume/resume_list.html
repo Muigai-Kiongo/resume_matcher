@@ -1,28 +1,110 @@
 {% extends "base.html" %}
 {% block title %}My Resumes{% endblock %}
+
 {% block content %}
-<div class="mb-8 flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-gray-800">My Resumes</h1>
-    <a href="{% url 'resume_create' %}" class="btn-primary px-4 py-2 rounded">Upload New Resume</a>
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">My Resumes</h1>
+        <p class="text-sm text-gray-500 mt-1">Manage your uploaded resumes, view parsed skills and apply to jobs quickly.</p>
+    </div>
+    <div class="flex items-center space-x-3">
+        <a href="{% url 'resume_create' %}" class="btn-primary px-4 py-2 rounded">Upload New Resume</a>
+    </div>
 </div>
+
 <div class="card p-6">
     {% if resumes %}
-    <ul>
-        {% for resume in resumes %}
-        <li class="mb-4 flex items-center justify-between border-b pb-2">
-            <div>
-                <a href="{% url 'resume_detail' resume.pk %}" class="text-indigo-700 font-medium hover:underline">{{ resume.get_skills_as_string }}</a>
-                <span class="block text-xs text-gray-400">Uploaded: {{ resume.uploaded_at|date:"M d, Y" }}</span>
+        <ul class="space-y-4">
+            {% for resume in resumes %}
+            <li class="flex items-center justify-between gap-4 pb-4 border-b last:border-b-0">
+                <div class="flex items-start gap-4">
+                    <!-- file / icon -->
+                    <div class="flex-shrink-0 mt-1">
+                        {% if resume.file %}
+                        <a href="{{ resume.file.url }}" target="_blank" class="inline-flex items-center justify-center w-12 h-12 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            <!-- simple file icon -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7v10a2 2 0 002 2h6a2 2 0 002-2V9l-6-6H9a2 2 0 00-2 2z" />
+                            </svg>
+                        </a>
+                        {% else %}
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l9-5-9-5-9 5 9 5z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l6.16-3.422M12 14v7" />
+                            </svg>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- main info -->
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-3">
+                            <a href="{% url 'resume_detail' resume.pk %}" class="text-indigo-700 font-semibold hover:underline truncate">
+                                {{ resume.summary|default:resume.get_skills_as_string|truncatechars:60 }}
+                            </a>
+                            <span class="text-xs text-gray-400">•</span>
+                            <span class="text-xs text-gray-400">Uploaded: {{ resume.uploaded_at|date:"M d, Y" }}</span>
+                        </div>
+
+                        <!-- skills badges -->
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {% if resume.skills.exists %}
+                                {% for skill in resume.skills.all %}
+                                    <span class="text-xs px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">{{ skill.name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-xs text-gray-500">No structured skills</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- short extracted text preview -->
+                        {% if resume.extracted_text %}
+                        <p class="mt-2 text-sm text-gray-600 line-clamp-3">{{ resume.extracted_text|truncatechars:180 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- actions -->
+                <div class="flex items-center gap-2">
+                    <a href="{% url 'resume_detail' resume.pk %}" class="text-sm px-3 py-1 rounded border border-gray-200 text-gray-700 hover:bg-gray-50">View</a>
+
+                    <a href="{% url 'application_create' resume.pk %}" title="Apply with this resume"
+                       class="text-sm px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white">Apply</a>
+
+                    <a href="{% url 'resume_update' resume.pk %}" class="text-sm px-3 py-1 rounded border border-gray-200 text-gray-700 hover:bg-gray-50">Edit</a>
+
+                    <form action="{% url 'resume_delete' resume.pk %}" method="post" class="inline" onsubmit="return confirm('Delete this resume? This action cannot be undone.');">
+                        {% csrf_token %}
+                        <button type="submit" class="text-sm px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white">Delete</button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {% if page_obj %}
+        <!-- simple pagination -->
+        <div class="mt-6 flex items-center justify-between">
+            <div class="text-sm text-gray-600">
+                Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
             </div>
-            <div class="flex space-x-2">
-                <a href="{% url 'resume_update' resume.pk %}" class="text-blue-600 hover:underline text-sm">Edit</a>
-                <a href="{% url 'resume_delete' resume.pk %}" class="text-red-600 hover:underline text-sm">Delete</a>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded border border-gray-200 text-sm">Prev</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded border border-gray-200 text-sm">Next</a>
+                {% endif %}
             </div>
-        </li>
-        {% endfor %}
-    </ul>
+        </div>
+        {% endif %}
+
     {% else %}
-    <p class="text-gray-500">No resumes uploaded yet.</p>
+        <div class="py-8 text-center">
+            <p class="text-gray-600 mb-4">You don't have any resumes yet. Upload your first resume to start applying.</p>
+            <a href="{% url 'resume_create' %}" class="btn-primary px-4 py-2 rounded">Upload Resume</a>
+        </div>
     {% endif %}
 </div>
 {% endblock %}

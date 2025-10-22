@@ -1,32 +1,120 @@
 {% extends "base.html" %}
 {% block title %}Applications{% endblock %}
+
 {% block content %}
-<div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-800">Applications</h1>
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Applications</h1>
+        <p class="text-sm text-gray-500 mt-1">
+            {% if request.user.account_type == 'recruiter' %}
+                Applications to your jobs
+            {% else %}
+                Applications you've submitted
+            {% endif %}
+        </p>
+    </div>
+
+    {% if request.user.account_type != 'recruiter' %}
+    <a href="{% url 'resume_list' %}" class="btn-primary px-4 py-2 rounded text-sm">Manage Resumes</a>
+    {% endif %}
 </div>
+
 <div class="card p-6">
     {% if applications %}
-    <ul>
-        {% for application in applications %}
-        <li class="mb-4 flex flex-col border-b pb-2">
-            <a href="{% url 'application_detail' application.pk %}" class="text-indigo-700 font-medium hover:underline">
-                {{ application.job.title }} at {{ application.job.company }}
-            </a>
-            <span class="text-sm text-gray-500">Status:
-                <span class="font-semibold {% if application.status == 'hired' %}text-green-600{% elif application.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %}">
-                    {{ application.get_status_display }}
-                </span>
-            </span>
-            <span class="text-xs text-gray-400">Submitted: {{ application.submission_date|date:"M d, Y" }}</span>
-            <div class="flex space-x-2 mt-2">
-                <a href="{% url 'application_update' application.pk %}" class="text-blue-600 hover:underline text-sm">Edit</a>
-                <a href="{% url 'application_delete' application.pk %}" class="text-red-600 hover:underline text-sm">Delete</a>
+        <ul class="space-y-4">
+            {% for application in applications %}
+            <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b last:border-b-0">
+                <div class="min-w-0">
+                    <a href="{% url 'application_detail' application.pk %}" class="text-indigo-700 font-semibold hover:underline truncate block">
+                        {{ application.job.title }} at {{ application.job.company }}
+                    </a>
+
+                    <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                        <span>
+                            Status:
+                            <span class="font-semibold
+                                {% if application.status == 'hired' %}text-green-600
+                                {% elif application.status == 'rejected' %}text-red-600
+                                {% elif application.status == 'shortlisted' %}text-indigo-600
+                                {% else %}text-yellow-600{% endif %}">
+                                {{ application.get_status_display }}
+                            </span>
+                        </span>
+
+                        <span>Submitted: {{ application.submission_date|date:"M d, Y" }}</span>
+
+                        {% if request.user.account_type == 'recruiter' %}
+                            <span>Applicant: <strong class="text-gray-700">{{ application.user.get_full_name|default:application.user.username }}</strong></span>
+                            {% if application.resume %}
+                                <span>
+                                    Resume:
+                                    <a href="{% url 'resume_detail' application.resume.pk %}" class="text-indigo-600 hover:underline">
+                                        {{ application.resume.summary|default:application.resume.get_skills_as_string|truncatechars:50 }}
+                                    </a>
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            {% if application.match_score %}
+                                <span>Match:
+                                    <strong class="text-gray-700">{{ application.match_score|floatformat:2 }}</strong>
+                                </span>
+                            {% endif %}
+                            {% if application.job.posted_by %}
+                                <span>Posted by: <span class="text-gray-700">{{ application.job.posted_by.get_full_name|default:application.job.posted_by.username }}</span></span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+
+                    {% if application.ai_feedback %}
+                        <p class="mt-2 text-sm text-gray-600">AI feedback: {{ application.ai_feedback|truncatechars:150 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- actions -->
+                <div class="flex items-center gap-2">
+                    <a href="{% url 'application_detail' application.pk %}" class="px-3 py-1 rounded border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">View</a>
+
+                    {% if request.user == application.user %}
+                        <a href="{% url 'application_update' application.pk %}" class="px-3 py-1 rounded border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">Edit</a>
+
+                        <form action="{% url 'application_delete' application.pk %}" method="post" class="inline" onsubmit="return confirm('Withdraw this application?');">
+                            {% csrf_token %}
+                            <button type="submit" class="px-3 py-1 rounded bg-red-600 text-white text-sm hover:bg-red-700">Withdraw</button>
+                        </form>
+                    {% elif request.user == application.job.posted_by %}
+                        <!-- recruiter actions for application -->
+                        <a href="{% url 'application_update' application.pk %}" class="px-3 py-1 rounded border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">Update Status</a>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {% if page_obj %}
+        <div class="mt-6 flex items-center justify-between">
+            <div class="text-sm text-gray-600">
+                Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
             </div>
-        </li>
-        {% endfor %}
-    </ul>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded border border-gray-200 text-sm">Prev</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded border border-gray-200 text-sm">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
     {% else %}
-    <p class="text-gray-500">No applications found.</p>
+        <div class="py-8 text-center">
+            <p class="text-gray-600 mb-4">No applications found.</p>
+            {% if request.user.account_type == 'recruiter' %}
+                <a href="{% url 'job_create' %}" class="btn-primary px-4 py-2 rounded">Post a Job</a>
+            {% else %}
+                <a href="{% url 'job_list' %}" class="btn-primary px-4 py-2 rounded">Browse Jobs</a>
+            {% endif %}
+        </div>
     {% endif %}
 </div>
 {% endblock %}

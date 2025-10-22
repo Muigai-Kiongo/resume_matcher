@@ -1,20 +1,71 @@
 {% extends "base.html" %}
 {% block title %}Job Form{% endblock %}
+
 {% block content %}
-<div class="max-w-xl mx-auto card p-8">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">{{ form.instance.pk|yesno:"Edit Job Posting,Post New Job" }}</h2>
-    <form method="post" novalidate>
+<div class="max-w-2xl mx-auto card p-8">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+        {{ form.instance.pk|yesno:"Edit Job Posting,Post New Job" }}
+    </h2>
+
+    {% if form.instance.pk %}
+    <div class="mb-4 p-3 bg-gray-50 rounded border border-gray-100">
+        <div class="text-sm text-gray-600">Editing job: <strong class="text-gray-800">{{ form.instance.title }}</strong></div>
+        <div class="text-xs text-gray-500">Company: {{ form.instance.company }}</div>
+    </div>
+    {% endif %}
+
+    <form method="post" novalidate id="job-form">
         {% csrf_token %}
-        {% for field in form %}
+        {{ form.non_field_errors }}
+
+        {# Render visible fields so order follows the form; show help_text and errors #}
+        {% for field in form.visible_fields %}
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
-                {{ field }}
+                <label class="block text-sm font-medium text-gray-700" for="{{ field.id_for_label }}">
+                    {{ field.label }}{% if field.field.required %}<span class="text-red-600">*</span>{% endif %}
+                </label>
+
+                <div class="mt-1">
+                    {{ field }}
+                </div>
+
+                {% if field.help_text %}
+                    <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
+                {% endif %}
+
                 {% if field.errors %}
-                    <p class="text-red-600 text-sm mt-1">{{ field.errors.0 }}</p>
+                    <p class="text-red-600 text-sm mt-1">{{ field.errors.as_text|slice:2 }}</p>
                 {% endif %}
             </div>
         {% endfor %}
+
+        {# Hidden fields (e.g., any hidden job field or csrf already rendered) #}
+        {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+        {% endfor %}
+
         <button type="submit" class="btn-primary px-4 py-2 rounded w-full">Save</button>
     </form>
 </div>
+
+<script>
+/*
+Optional UX improvements:
+- If you add Select2 (or similar) assets, uncomment and use the code below to initialize the requirements multi-select.
+- If you want an inline preview of selected new_requirements split into badges, we can add that quickly.
+*/
+document.addEventListener('DOMContentLoaded', function () {
+    // Example: initialize Select2 if included
+    try {
+        if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
+            jQuery('#id_requirements').select2({
+                placeholder: 'Search and select skills',
+                width: '100%'
+            });
+        }
+    } catch (e) {
+        // ignore if Select2 not present
+    }
+});
+</script>
 {% endblock %}
