@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>New application: {{ job.title }}</title>
+  </head>
+  <body style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:#111; line-height:1.4;">
+    <div style="max-width:680px;margin:0 auto;padding:16px;">
+      <h2 style="margin:0 0 8px 0;font-size:18px;color:#111;">New application for <strong>{{ job.title }}</strong></h2>
+
+      <p style="margin:8px 0;color:#333;">
+        <strong>Company:</strong> {{ job.company }}<br/>
+        <strong>Applicant:</strong> {{ application.user.get_full_name|default:application.user.username }} (<a href="mailto:{{ application.user.email }}">{{ application.user.email }}</a>)<br/>
+        <strong>Submitted:</strong> {{ application.submission_date|date:"M d, Y H:i" }}
+      </p>
+
+      <div style="margin:12px 0;padding:12px;background:#f7f9fc;border:1px solid #eef2f7;border-radius:6px;color:#222;">
+        <strong>Resume summary</strong>
+        <div style="margin-top:8px;white-space:pre-wrap;">{{ resume.summary|default:"(no summary provided)" }}</div>
+      </div>
+
+      <p style="margin:12px 0;">
+        <a href="{{ application_url }}" style="display:inline-block;padding:8px 12px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;">View application</a>
+        {% if resume_url %}
+          <a href="{{ resume_url }}" style="display:inline-block;margin-left:8px;padding:8px 12px;background:#e5e7eb;color:#111;border-radius:6px;text-decoration:none;">View resume</a>
+        {% endif %}
+      </p>
+
+      <hr style="border:none;border-top:1px solid #eee;margin:18px 0;" />
+
+      <p style="color:#666;font-size:12px;margin:0;">
+        This message was generated automatically. Replying to this email may not be monitored.
+      </p>
+    </div>
+  </body>
+</html>

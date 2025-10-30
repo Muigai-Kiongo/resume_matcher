@@ -1,0 +1,13 @@
+New application for "{{ job.title }}" at {{ job.company }}
+
+Applicant: {{ application.user.get_full_name|default:application.user.username }} ({{ application.user.email }})
+Submitted: {{ application.submission_date|date:"M d, Y H:i" }}
+
+Resume summary:
+{{ resume.summary|default:"(no summary provided)" }}
+
+View application: {{ application_url }}
+{% if resume_url %}View resume: {{ resume_url }}{% endif %}
+
+--
+This notification was generated automatically by {{ DEFAULT_FROM_EMAIL|default:"your site" }}.

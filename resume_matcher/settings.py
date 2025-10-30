@@ -135,3 +135,31 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 LOGIN_REDIRECT_URL = 'role_redirect'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+# Email (SMTP) configuration - using provided Gmail SMTP credentials
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# Hard-coded credentials (replace with environment variables later)
+EMAIL_HOST_USER = "kabochakiongo@gmail.com"
+EMAIL_HOST_PASSWORD = "qmtgccnmfxhtodnl"  # <- your 16-char Gmail app password
+
+# From header shown to recipients
+DEFAULT_FROM_EMAIL = f"Resume Matcher <{EMAIL_HOST_USER}>"
+
+# Optional safety check to warn at startup (requires DEBUG variable)
+from django.core.exceptions import ImproperlyConfigured
+try:
+    DEBUG  # noqa: F821
+except NameError:
+    DEBUG = True
+
+if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
+    if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
+        if DEBUG:
+            print("WARNING: SMTP backend selected but EMAIL_HOST_USER/EMAIL_HOST_PASSWORD are not set.")
+        else:
+            raise ImproperlyConfigured("EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must be set for SMTP backend")

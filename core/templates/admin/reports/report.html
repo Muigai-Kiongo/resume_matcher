@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>{{ model_name }} Report</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; color: #222; margin: 20px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; }
+    .meta { color: #666; font-size: 0.9rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f5f7fb; }
+    tr:nth-child(even) { background: #fafafa; }
+    .small { font-size: 0.85rem; color: #555; }
+    .btn { display:inline-block; padding:8px 12px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1 style="margin:0">{{ model_name }} Report</h1>
+      <div class="meta small">Generated: {{ now }} by {{ user.get_full_name|default:user.username }}</div>
+    </div>
+  </div>
+
+  {% load admin_report_extras %}
+
+  <table>
+    <thead>
+      <tr>
+        {% for h in headers %}
+          <th>{{ h }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          {% for h in headers %}
+            <td>{{ row|get_item:h }}</td>
+          {% endfor %}
+        </tr>
+      {% empty %}
+        <tr><td colspan="{{ headers|length }}">No records selected.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="small">Tip: open this file in a browser and use Print → Save as PDF to print. If WeasyPrint is installed the admin will generate a PDF directly.</p>
+</body>
+</html>

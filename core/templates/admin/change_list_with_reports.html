@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %} {% load i18n %} {% block object-tools %}
+{{ block.super }}
+<div class="object-tools" style="margin-top: 8px">
+  <div class="buttons">
+    <a class="button" href="{{ request.path }}generate-report/"
+      >Generate report (HTML)</a
+    >
+    <a class="button" href="{{ request.path }}print-pdf/">Print (PDF)</a>
+  </div>
+</div>
+{% endblock %}

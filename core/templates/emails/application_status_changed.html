@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Application status updated: {{ application.job.title }}</title>
+  </head>
+  <body style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:#111; line-height:1.4;">
+    <div style="max-width:680px;margin:0 auto;padding:16px;">
+      <h2 style="margin:0 0 8px 0;font-size:18px;color:#111;">Application status updated</h2>
+
+      <p style="margin:8px 0;color:#333;">
+        Your application for <strong>{{ application.job.title }}</strong> has been updated.
+      </p>
+
+      <p style="margin:8px 0;color:#333;">
+        <strong>New status:</strong> {{ application.get_status_display }}
+      </p>
+
+      <p style="margin:12px 0;">
+        <a href="{{ application_url }}" style="display:inline-block;padding:8px 12px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;">View application</a>
+      </p>
+
+      <hr style="border:none;border-top:1px solid #eee;margin:18px 0;" />
+
+      <p style="color:#666;font-size:12px;margin:0;">
+        This message was generated automatically. If you have questions, reply to the recruiter or contact support.
+      </p>
+    </div>
+  </body>
+</html>

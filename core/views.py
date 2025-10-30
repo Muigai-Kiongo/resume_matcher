@@ -2,8 +2,15 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, Http404
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from django.utils.html import strip_tags
+from django.urls import reverse
+import logging
 import os
+import tempfile
+
 from .models import Resume, Job_Posting, Application, Feedback, Skill
 from .forms import (
     ResumeForm,
@@ -19,19 +26,49 @@ from .utils import (
     calculate_match_score,
 )
 
-import tempfile
-import os
+logger = logging.getLogger(__name__)
 
 
 @login_required
 def role_redirect(request):
-    if request.user.account_type == 'seeker':
-        return redirect('seeker_dashboard')
-    elif request.user.account_type == 'recruiter':
-        return redirect('recruiter_dashboard')
-    else:
-        return redirect('login')
+    """
+    Redirect users after login according to their role, with explicit admin handling.
 
+    Priority:
+      1. superuser / staff  -> admin dashboard (prefer 'admin_dashboard' if present, fall back to Django admin)
+      2. recruiter          -> recruiter_dashboard
+      3. seeker             -> seeker_dashboard
+      4. fallback           -> send to profile edit if available, otherwise to login
+
+    Notes:
+    - Keeps a helpful message when account_type is missing / profile incomplete.
+    - Don't remove this view's @login_required decorator — it's intended as the post-login redirect.
+    """
+    user = request.user
+
+    # Admins / staff should go to an admin area.
+    if user.is_superuser or user.is_staff:
+        # Prefer a custom named admin-dashboard view if your project has one,
+        # otherwise fall back to Django's built-in admin index.
+        try:
+            return redirect('admin:index')  # optional custom admin dashboard view
+        except Exception:
+            return redirect('admin:index')  # Django admin
+
+    account_type = getattr(user, "account_type", None)
+
+    if account_type == 'recruiter':
+        return redirect('recruiter_dashboard')
+    if account_type == 'seeker':
+        return redirect('seeker_dashboard')
+
+    # Fallback: user has no account_type set or is unusual.
+    messages.info(request, "Please complete your account profile to continue.")
+    # Try to send them to a profile-editing view if you have one, otherwise to login.
+    try:
+        return redirect('profile_edit')
+    except Exception:
+        return redirect('login')
 
 @login_required
 def seeker_dashboard(request):
@@ -148,14 +185,6 @@ def resume_create(request):
     })
 
 
-
-# core/views.py
-from django.shortcuts import render, get_object_or_404
-from django.http import Http404, HttpResponseForbidden
-from django.contrib.auth.decorators import login_required
-
-from .models import Resume, Application
-
 @login_required
 def resume_detail(request, pk):
     # try to get the resume regardless of owner first
@@ -186,6 +215,7 @@ def resume_detail(request, pk):
         'experiences': experiences,
         'education_list': education_list,
     })
+
 
 @login_required
 def resume_update(request, pk):
@@ -257,11 +287,6 @@ def resume_update(request, pk):
     })
 
 
-
-
-
-
-
 @login_required
 def resume_delete(request, pk):
     resume = get_object_or_404(Resume, pk=pk, user=request.user)
@@ -274,6 +299,7 @@ def resume_delete(request, pk):
         messages.success(request, "Resume deleted.")
         return redirect('resume_list')
     return render(request, 'resume/resume_confirm_delete.html', {'resume': resume, 'file_name': file_name})
+
 
 # Job Posting CRUD Views (Recruiter only)
 @login_required
@@ -352,7 +378,6 @@ def application_list(request):
     return render(request, 'applications/application_list.html', {'applications': applications})
 
 
-# core/views.py (application_create)
 @login_required
 def application_create(request, job_id):
     job = get_object_or_404(Job_Posting, pk=job_id, is_active=True)
@@ -380,14 +405,59 @@ def application_create(request, job_id):
                 if resume:
                     resume_skill_names = [s.name for s in resume.skills.all()]
                     job_req_names = [s.name for s in job.requirements.all()]
-                    # replace with your actual scoring fn
                     application.match_score = calculate_match_score(resume_skill_names, job_req_names)
             except Exception:
-                pass
+                logger.exception("Error computing match score", exc_info=True)
 
             application.save()
             # persist any m2m fields (if any)
             form.save_m2m()
+
+            # Build absolute URLs for emails
+            try:
+                application_url = request.build_absolute_uri(reverse('application_detail', args=[application.pk]))
+            except Exception:
+                application_url = ""
+            try:
+                resume_url = request.build_absolute_uri(reverse('resume_detail', args=[application.resume.pk])) if application.resume else ""
+            except Exception:
+                resume_url = ""
+
+            # Notify the recruiter (job.posted_by) if they have an email
+            if job.posted_by and getattr(job.posted_by, "email", None):
+                try:
+                    ctx = {
+                        "job": job,
+                        "application": application,
+                        "resume": application.resume,
+                        "application_url": application_url,
+                        "resume_url": resume_url,
+                    }
+                    subject = f"New application for {job.title} at {job.company}"
+                    html_body = render_to_string("emails/new_application_notification.html", ctx)
+                    text_body = render_to_string("emails/new_application_notification.txt", ctx)
+                    msg = EmailMultiAlternatives(subject, strip_tags(html_body), None, [job.posted_by.email])
+                    msg.attach_alternative(html_body, "text/html")
+                    msg.send(fail_silently=False)
+                except Exception as e:
+                    logger.exception("Failed to send new application email to recruiter: %s", e)
+
+            # Confirmation email to applicant
+            if request.user and getattr(request.user, "email", None):
+                try:
+                    ctx = {
+                        "job": job,
+                        "application": application,
+                        "application_url": application_url,
+                    }
+                    subject = f"Application submitted: {job.title} at {job.company}"
+                    html_body = render_to_string("emails/application_submitted.html", ctx)
+                    text_body = render_to_string("emails/application_submitted.txt", ctx)
+                    msg = EmailMultiAlternatives(subject, strip_tags(html_body), None, [request.user.email])
+                    msg.attach_alternative(html_body, "text/html")
+                    msg.send(fail_silently=False)
+                except Exception as e:
+                    logger.exception("Failed to send confirmation email to applicant: %s", e)
 
             messages.success(request, "Application submitted.")
             return redirect('application_list')
@@ -419,6 +489,8 @@ def application_update(request, pk):
         messages.error(request, "You don't have permission to edit this application.")
         return redirect('application_detail', pk=pk)
 
+    prev_status = application.status
+
     # pass user so form limits resume choices
     if request.method == "POST":
         form = ApplicationForm(request.POST, instance=application, user=request.user)
@@ -431,6 +503,22 @@ def application_update(request, pk):
             app.job = application.job
             app.save()
             form.save_m2m()
+
+            # If status changed and edited by the job poster, notify applicant
+            if prev_status != app.status and request.user == application.job.posted_by:
+                if app.user and getattr(app.user, "email", None):
+                    try:
+                        application_url = request.build_absolute_uri(reverse('application_detail', args=[app.pk]))
+                        ctx = {"application": app, "application_url": application_url}
+                        subject = f"Update: your application for {app.job.title}"
+                        html_body = render_to_string("emails/application_status_changed.html", ctx)
+                        text_body = render_to_string("emails/application_status_changed.txt", ctx)
+                        msg = EmailMultiAlternatives(subject, strip_tags(html_body), None, [app.user.email])
+                        msg.attach_alternative(html_body, "text/html")
+                        msg.send(fail_silently=False)
+                    except Exception as e:
+                        logger.exception("Failed to send status-change email: %s", e)
+
             messages.success(request, "Application updated.")
             return redirect('application_detail', pk=pk)
         else:
@@ -438,6 +526,7 @@ def application_update(request, pk):
     else:
         form = ApplicationForm(instance=application, user=request.user)
     return render(request, "applications/application_form.html", {"form": form, "job": application.job})
+
 
 @login_required
 def application_delete(request, pk):
@@ -457,8 +546,6 @@ def application_delete(request, pk):
         application.delete()
         messages.success(request, "Application deleted.")
         # Redirect recruiter to their applications by job, applicant to their list
-        if request.user == application.job.posted_by:
-            return redirect('application_list')
         return redirect('application_list')
 
     # GET -> show confirmation page

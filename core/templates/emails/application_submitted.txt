@@ -1,0 +1,12 @@
+Your application for "{{ job.title }}" at {{ job.company }} has been submitted.
+
+Status: Pending
+Submitted: {{ application.submission_date|date:"M d, Y H:i" }}
+
+You can view your application here:
+{{ application_url }}
+
+Good luck!
+
+--
+This message was generated automatically by {{ DEFAULT_FROM_EMAIL|default:"your site" }}.

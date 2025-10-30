@@ -1,0 +1,9 @@
+Update on your application for "{{ application.job.title }}"
+
+New status: {{ application.get_status_display }}
+
+You can view the application here:
+{{ application_url }}
+
+--
+This message was generated automatically by {{ DEFAULT_FROM_EMAIL|default:"your site" }}.
