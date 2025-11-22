@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import HttpResponseForbidden, Http404
+from django.http import HttpResponseForbidden, Http404, JsonResponse, HttpResponseBadRequest
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
@@ -10,8 +10,10 @@ from django.urls import reverse
 import logging
 import os
 import tempfile
+from django.utils import timezone
+from django.core.paginator import Paginator
 
-from .models import Resume, Job_Posting, Application, Feedback, Skill
+from .models import Resume, Job_Posting, Application, Feedback, Skill, Conversation, Message, User
 from .forms import (
     ResumeForm,
     JobPostingForm,
@@ -19,6 +21,8 @@ from .forms import (
     FeedbackForm,
     ExperienceFormSet,
     EducationFormSet,
+    ConversationForm,
+    MessageForm
 )
 from .utils import (
     extract_text_from_resume,
@@ -69,6 +73,7 @@ def role_redirect(request):
         return redirect('profile_edit')
     except Exception:
         return redirect('login')
+
 
 @login_required
 def seeker_dashboard(request):
@@ -591,4 +596,160 @@ def feedback_delete(request, pk):
         feedback.delete()
         messages.success(request, "Feedback deleted.")
         return redirect('feedback_list')
-    return render(request, 'feedback/feedback_confirm_delete.html', {'feedback': feedback})
+    return render(request, 'feedback/feedback_confirm_delete.html', {'feedback': feedback}
+    )
+
+
+@login_required
+def conversations_list(request):
+    """
+    Show conversations that include the current user.
+    Paginated to 25 per page.
+    """
+    qs = Conversation.objects.filter(participants=request.user).select_related("last_message").prefetch_related("participants").order_by("-updated_at")
+    paginator = Paginator(qs, 25)
+    page_number = request.GET.get("page") or 1
+    page = paginator.get_page(page_number)
+    return render(request, "messages/conversation_list.html", {"page": page, "conversations": page.object_list})
+
+
+@login_required
+@transaction.atomic
+def conversation_create(request):
+    """
+    Create a new conversation. If a conversation with the same exact participants and subject should be reused,
+    consider implementing a dedupe check. For now this always creates a new Conversation.
+    """
+    if request.method == "POST":
+        form = ConversationForm(request.POST)
+        if form.is_valid():
+            conv = form.save(commit=False)
+            conv.save()
+            # Add participants (ConversationForm validates at least 2 participants)
+            participants = form.cleaned_data["participants"]
+            conv.participants.add(*participants)
+            # Ensure the creator is included
+            if request.user not in participants:
+                conv.participants.add(request.user)
+            conv.save()
+            # Redirect to non-namespaced route
+            return redirect("conversation_detail", conversation_id=conv.conversation_id)
+    else:
+        # Prefill participants with current user for convenience (but form requires 2+)
+        form = ConversationForm(initial={"participants": [request.user.pk]})
+    return render(request, "messages/conversation_form.html", {"form": form})
+
+
+@login_required
+def conversation_detail(request, conversation_id):
+    """
+    Display one conversation with its messages and a form to post new messages.
+    Marks unread messages as read for the current user when the page is loaded.
+    """
+    conv = get_object_or_404(Conversation, conversation_id=conversation_id)
+    if not conv.participants.filter(pk=request.user.pk).exists():
+        return HttpResponseForbidden("You are not a participant in this conversation.")
+
+    # Messages ordered oldest -> newest for display
+    messages_qs = conv.messages.select_related("sender").order_by("created_at")
+
+    # Mark unread messages (sender != current user) as read by this user
+    unread_messages = messages_qs.exclude(read_by=request.user).exclude(sender=request.user)
+    if unread_messages.exists():
+        for m in unread_messages:
+            m.read_by.add(request.user)
+
+    # Provide a message form for posting
+    msg_form = MessageForm()
+
+    # paging recent messages for long conversations (show latest 100 by default)
+    paginator = Paginator(messages_qs, 200)
+    page_num = request.GET.get("page") or paginator.num_pages
+    page = paginator.get_page(page_num)
+
+    return render(request, "messages/conversation_detail.html", {
+        "conversation": conv,
+        "messages": page.object_list,
+        "page": page,
+        "form": msg_form,
+    })
+
+
+@login_required
+@transaction.atomic
+def message_create(request, conversation_id):
+    """
+    POST handler to create a message in a conversation.
+    Accepts 'content' and optional file 'attachment'.
+    Redirects back to the conversation detail.
+    """
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST required")
+
+    conv = get_object_or_404(Conversation, conversation_id=conversation_id)
+    if not conv.participants.filter(pk=request.user.pk).exists():
+        return HttpResponseForbidden("You are not a participant in this conversation.")
+
+    form = MessageForm(request.POST, request.FILES)
+    if form.is_valid():
+        msg = form.save(commit=False)
+        msg.conversation = conv
+        msg.sender = request.user
+        msg.save()
+        # message.save() will update conversation.last_message (per model.save override)
+        # Mark message as read by sender
+        try:
+            msg.read_by.add(request.user)
+        except Exception:
+            # ignore read_by failures for now
+            pass
+        # Redirect to non-namespaced route
+        return redirect("conversation_detail", conversation_id=conv.conversation_id)
+    else:
+        # On invalid form, re-render the conversation detail with errors
+        messages_qs = conv.messages.select_related("sender").order_by("created_at")
+        return render(request, "messages/conversation_detail.html", {
+            "conversation": conv,
+            "messages": messages_qs,
+            "form": form,
+        })
+
+
+@login_required
+def mark_message_read(request, message_id):
+    """
+    Mark a single message as read by the current user. Returns JSON.
+    """
+    msg = get_object_or_404(Message, message_id=message_id)
+    conv = msg.conversation
+    if not conv.participants.filter(pk=request.user.pk).exists():
+        return JsonResponse({"error": "forbidden"}, status=403)
+    msg.read_by.add(request.user)
+    return JsonResponse({"ok": True, "message_id": msg.message_id, "read_by_count": msg.read_by.count()})
+
+
+@login_required
+def start_conversation_with_user(request, user_id, subject=None):
+    """
+    Convenience view to start a one-to-one conversation with a specific user.
+    If a conversation between the two users with the same subject already exists you may choose to reuse it.
+    This implementation always creates a new conversation for simplicity.
+    """
+    other = get_object_or_404(User, pk=user_id)
+    if other == request.user:
+        return HttpResponseBadRequest("Cannot start a conversation with yourself.")
+
+    if request.method == "POST":
+        form = ConversationForm(request.POST)
+        if form.is_valid():
+            conv = form.save(commit=False)
+            conv.save()
+            conv.participants.add(request.user, other)
+            # Redirect to non-namespaced route
+            return redirect("conversation_detail", conversation_id=conv.conversation_id)
+    else:
+        initial = {"participants": [request.user.pk, other.pk]}
+        if subject:
+            initial["subject"] = subject
+        form = ConversationForm(initial=initial)
+    return render(request, "messages/conversation_form.html", {"form": form, "other": other})

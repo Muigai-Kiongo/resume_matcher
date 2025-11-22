@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Messages - ResumeMatcher{% endblock %}
+{% block content %}
+<div class="card p-6 max-w-3xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold">Conversations</h2>
+    <a href="{% url 'conversation_create' %}" class="btn-primary px-3 py-1 rounded text-sm">Start Conversation</a>
+  </div>
+
+  <ul class="space-y-3">
+    {% for conv in conversations %}
+      <li class="border rounded p-3">
+        <a class="flex items-center justify-between" href="{% url 'conversation_detail' conv.conversation_id %}">
+          <div>
+            <div class="font-medium">{{ conv.subject|default:"(no subject)" }}</div>
+            <div class="text-sm text-gray-500">
+              Participants:
+              {% for p in conv.participants.all %}
+                {{ p.get_full_name|default:p.username }}{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            </div>
+            {% if conv.last_message %}
+              <div class="text-sm text-gray-600 mt-1"><strong>{{ conv.last_message.sender.get_full_name|default:conv.last_message.sender.username }}:</strong> {{ conv.last_message.content|truncatechars:60 }}</div>
+            {% endif %}
+          </div>
+          <div class="text-xs text-gray-500">{{ conv.updated_at|date:"M d, Y H:i" }}</div>
+        </a>
+      </li>
+    {% empty %}
+      <li class="text-gray-600">No conversations yet.</li>
+    {% endfor %}
+  </ul>
+
+  {% if page.has_other_pages %}
+    <div class="mt-4">
+      {% if page.has_previous %}
+        <a href="?page={{ page.previous_page_number }}" class="px-3 py-1 bg-gray-100 rounded">Previous</a>
+      {% endif %}
+      <span class="mx-2 text-sm text-gray-600">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}
+        <a href="?page={{ page.next_page_number }}" class="px-3 py-1 bg-gray-100 rounded">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

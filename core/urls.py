@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+
+
 urlpatterns = [
     path('', views.role_redirect, name='role_redirect'),
     path('dashboard/seeker/', views.seeker_dashboard, name='seeker_dashboard'),
@@ -32,4 +34,12 @@ urlpatterns = [
     path('feedback/create/<int:application_id>/', views.feedback_create, name='feedback_create'),
     path('feedback/<int:pk>/', views.feedback_detail, name='feedback_detail'),
     path('feedback/<int:pk>/delete/', views.feedback_delete, name='feedback_delete'),
+
+    # Messaging / Conversations (mapped inline — no separate namespace)
+    path('messages/', views.conversations_list, name='conversations_list'),
+    path('messages/create/', views.conversation_create, name='conversation_create'),
+    path('messages/start/<int:user_id>/', views.start_conversation_with_user, name='start_conversation_with_user'),
+    path('messages/<int:conversation_id>/', views.conversation_detail, name='conversation_detail'),
+    path('messages/<int:conversation_id>/send/', views.message_create, name='message_create'),
+    path('messages/message/<int:message_id>/read/', views.mark_message_read, name='mark_message_read'),
 ]

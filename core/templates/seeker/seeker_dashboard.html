@@ -1,67 +1,61 @@
 {% extends "base.html" %}
-{% block title %}Seeker Dashboard{% endblock %}
+{% block title %}Seeker Dashboard - ResumeMatcher{% endblock %}
 {% block content %}
-<div class="mb-8">
-    <h2 class="text-3xl font-bold text-gray-800">Welcome, {{ user.username }}</h2>
-    <p class="text-gray-600 mt-2">Here’s a summary of your profile and recent activity.</p>
-</div>
+<div class="grid gap-6 md:grid-cols-2">
+  <div class="card p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold">My Resumes</h2>
+      <a href="{% url 'resume_create' %}" class="btn-primary px-3 py-1 rounded text-sm">Upload Resume</a>
+    </div>
+    {% if resumes %}
+      <ul class="space-y-3">
+        {% for resume in resumes %}
+          <li class="flex items-start justify-between">
+            <div>
+              <a href="{% url 'resume_detail' resume.pk %}" class="font-medium text-indigo-900">{{ resume }}</a>
+              <div class="text-sm text-gray-500">{{ resume.uploaded_at }}</div>
+              <div class="text-sm text-gray-600 mt-2">{{ resume.summary|default:"(no summary)"|truncatechars:150 }}</div>
+            </div>
+            <div class="flex flex-col items-end space-y-2">
+              <a href="{% url 'resume_update' resume.pk %}" class="text-sm text-indigo-700">Edit</a>
+              <form method="post" action="{% url 'resume_delete' resume.pk %}">
+                {% csrf_token %}
+                <button class="text-sm text-red-600" type="submit">Delete</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-gray-600">You haven't uploaded any resumes yet.</p>
+    {% endif %}
+  </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-    <!-- Resumes Card -->
-    <div class="card p-6">
-        <h3 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-            <svg class="h-6 w-6 text-indigo-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 8V6a2 2 0 012-2h12a2 2 0 012 2v2m-6 4h.01M12 12h.01M12 16h.01"></path>
-            </svg>
-            My Resumes
-        </h3>
-        {% if resumes %}
-            <ul>
-                {% for resume in resumes %}
-                <li class="mb-3 flex items-center justify-between">
-                    <div>
-                        <a href="{% url 'resume_detail' resume.pk %}" class="font-medium text-indigo-700 hover:underline">{{ resume.get_skills_as_string }}</a>
-                        <span class="block text-sm text-gray-500">Uploaded: {{ resume.uploaded_at|date:"M d, Y" }}</span>
-                    </div>
-                    <a href="{% url 'resume_update' resume.pk %}" class="text-sm text-indigo-600 hover:underline">Edit</a>
-                </li>
-                {% endfor %}
-            </ul>
-            <a href="{% url 'resume_create' %}" class="btn-primary px-4 py-2 rounded mt-4 inline-block">Upload New Resume</a>
-        {% else %}
-            <p class="text-gray-500">No resumes uploaded yet.</p>
-            <a href="{% url 'resume_create' %}" class="btn-primary px-4 py-2 rounded mt-4 inline-block">Upload Resume</a>
-        {% endif %}
+  <div class="card p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold">My Applications</h2>
+      <a href="{% url 'application_list' %}" class="text-sm text-indigo-700">View all</a>
     </div>
 
-    <!-- Applications Card -->
-    <div class="card p-6">
-        <h3 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-            <svg class="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6h6v6m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6"></path>
-            </svg>
-            Job Applications
-        </h3>
-        {% if applications %}
-            <ul>
-                {% for application in applications %}
-                <li class="mb-3 flex flex-col">
-                    <a href="{% url 'application_detail' application.pk %}" class="text-indigo-700 font-medium hover:underline">
-                        {{ application.job.title }} at {{ application.job.company }}
-                    </a>
-                    <span class="text-sm text-gray-500">Status: 
-                        <span class="font-semibold {% if application.status == 'hired' %}text-green-600{% elif application.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %}">
-                            {{ application.get_status_display }}
-                        </span>
-                    </span>
-                    <span class="text-xs text-gray-400">Submitted: {{ application.submission_date|date:"M d, Y" }}</span>
-                </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p class="text-gray-500">No applications submitted yet.</p>
-            <a href="{% url 'job_list' %}" class="btn-primary px-4 py-2 rounded mt-4 inline-block">Browse Jobs</a>
-        {% endif %}
-    </div>
+    {% if applications %}
+      <ul class="space-y-3">
+        {% for app in applications %}
+          <li class="flex items-start justify-between">
+            <div>
+              <a href="{% url 'application_detail' app.pk %}" class="font-medium text-indigo-900">{{ app.job.title }}</a>
+              <div class="text-sm text-gray-500">{{ app.job.company }} — Applied {{ app.submission_date|date:"M d, Y" }}</div>
+              <div class="text-xs mt-1 inline-block px-2 py-1 rounded text-white
+                {% if app.status == 'pending' %}bg-blue-500{% elif app.status == 'shortlisted' %}bg-yellow-500{% elif app.status == 'hired' %}bg-green-600{% else %}bg-red-600{% endif %}">
+                {{ app.get_status_display }}
+              </div>
+            </div>
+            <div class="text-sm text-gray-600">{{ app.match_score|floatformat:2 }}</div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-gray-600">You haven't applied to any jobs yet.</p>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Start Conversation - ResumeMatcher{% endblock %}
+{% block content %}
+<div class="card p-6 max-w-2xl mx-auto">
+  <h1 class="text-xl font-semibold mb-4">Start Conversation</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="mb-4">
+      {{ form.participants.label_tag }}<br/>
+      {{ form.participants }}
+      {{ form.participants.errors }}
+    </div>
+    <div class="mb-4">
+      {{ form.subject.label_tag }}<br/>
+      {{ form.subject }}
+      {{ form.subject.errors }}
+    </div>
+    <div class="mb-4">
+      {{ form.is_active.label_tag }} {{ form.is_active }}
+    </div>
+    <div class="flex gap-3">
+      <button type="submit" class="btn-primary px-4 py-2 rounded">Create</button>
+      <a href="{% url 'conversations_list' %}" class="text-sm text-gray-600">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

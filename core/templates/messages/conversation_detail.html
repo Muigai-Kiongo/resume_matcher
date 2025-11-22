@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Conversation - ResumeMatcher{% endblock %}
+{% block content %}
+<div class="card p-6 max-w-3xl mx-auto">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-lg font-semibold">{{ conversation.subject|default:"Conversation" }}</h2>
+      <div class="text-sm text-gray-500">Participants:
+        {% for p in conversation.participants.all %}
+          {{ p.get_full_name|default:p.username }}{% if not forloop.last %}, {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <div class="text-sm text-gray-500">{{ conversation.updated_at|date:"M d, Y H:i" }}</div>
+  </div>
+
+  <div id="messages" class="mt-4 p-4 border rounded max-h-96 overflow-auto space-y-3">
+    {% for m in messages %}
+      <div class="space-y-1 {% if m.sender == user %}text-right{% endif %}">
+        <div class="text-xs text-gray-500">
+          <strong>{{ m.sender.get_full_name|default:m.sender.username }}</strong> • {{ m.created_at|date:"M d, Y H:i" }}
+        </div>
+        <div class="rounded p-3 {% if m.sender == user %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-800{% endif %}">
+          {{ m.content|linebreaks }}
+          {% if m.attachment %}
+            <div class="mt-2"><a href="{{ m.attachment.url }}" class="underline text-sm">Download attachment</a></div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <form class="mt-4" method="post" action="{% url 'message_create' conversation.conversation_id %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div>
+      {{ form.content }}
+      {{ form.content.errors }}
+    </div>
+    <div class="mt-2">
+      {{ form.attachment }}
+      {{ form.attachment.errors }}
+    </div>
+    <div class="mt-3 flex gap-3">
+      <button type="submit" class="btn-primary px-4 py-2 rounded">Send</button>
+      <a href="{% url 'conversations_list' %}" class="text-sm text-gray-600">Back</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
